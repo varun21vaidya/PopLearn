@@ -102,6 +102,34 @@ function mountCard(title){
   `;
   root.appendChild(card);
   card.querySelector('.ilx-close').addEventListener('click', ()=> card.remove());
+  // create top-left handle for resizing while keeping bottom-right fixed
+  const resizer = document.createElement('div');
+  resizer.className = 'ilx-resizer-tl';
+  card.appendChild(resizer);
+  (function(){
+    let dragging = false, startX=0, startY=0, startW=0, startH=0;
+    resizer.addEventListener('mousedown', (e)=>{
+      e.preventDefault(); dragging = true;
+      startX = e.clientX; startY = e.clientY;
+      startW = card.offsetWidth; startH = card.offsetHeight;
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    function onMove(e){
+      if(!dragging) return;
+      // moving left/up should increase size — keep bottom-right fixed
+      const dx = startX - e.clientX; // positive when moved left
+      const dy = startY - e.clientY; // positive when moved up
+      const newW = Math.max(350, startW + dx);
+      const newH = Math.max(350, startH + dy);
+      card.style.width = newW + 'px';
+      card.style.height = newH + 'px';
+      // ensure card remains anchored at bottom-right
+      card.style.right = '16px';
+      card.style.bottom = '16px';
+    }
+    function onUp(){ dragging = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  })();
   return card.querySelector('.ilx-body');
 }
 
