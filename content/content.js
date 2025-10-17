@@ -101,7 +101,12 @@ function mountCard(title){
     <div class="ilx-body"></div>
   `;
   root.appendChild(card);
-  card.querySelector('.ilx-close').addEventListener('click', ()=> card.remove());
+  card.querySelector('.ilx-close').addEventListener('click', ()=>{
+    // if card is inside a fullscreen overlay, remove the overlay as well
+    const overlay = card.closest('.ilx-fullscreen-overlay');
+    if(overlay){ overlay.remove(); }
+    card.remove();
+  });
   // create top-left handle for resizing while keeping bottom-right fixed
   const resizer = document.createElement('div');
   resizer.className = 'ilx-resizer-tl';
@@ -137,11 +142,9 @@ function renderSummary(summary, image){
   const body = mountCard('Summary');
   const actions = document.createElement('div');
   actions.className = 'ilx-actions';
-  const expandBtn = document.createElement('button');
-  expandBtn.textContent = 'Expand';
   const copyBtn = document.createElement('button');
   copyBtn.textContent = 'Copy';
-  actions.append(expandBtn, copyBtn);
+  actions.append(copyBtn);
   body.appendChild(actions);
   if(image){
     const img = document.createElement('img');
@@ -149,17 +152,67 @@ function renderSummary(summary, image){
     body.appendChild(img);
   }
   const paraWrap = document.createElement('div');
-  paraWrap.style.maxHeight = '38vh';
-  paraWrap.style.overflow = 'auto';
+  // let the card's .ilx-body handle scrolling; avoid a second scrollbar inside the card
+  paraWrap.style.maxHeight = 'none';
+  paraWrap.style.overflow = 'visible';
   body.appendChild(paraWrap);
   summary.split(/\n+/).forEach(p=>{
     const el = document.createElement('p');
     el.textContent = p;
     paraWrap.appendChild(el);
   });
-  expandBtn.addEventListener('click', ()=>{ paraWrap.style.maxHeight = 'none'; });
   copyBtn.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(summary); copyBtn.textContent = 'Copied'; }catch(_){} });
 }
+
+// Add fullscreen/minimize buttons into card header when card is created
+// We add them lazily so all cards get the controls
+(function addHeaderControls(){
+  const origMount = mountCard;
+  window.mountCard = function(title){
+    const body = origMount(title);
+    const card = body.closest('.ilx-card');
+    if(card && !card.dataset.ilxControls){
+      card.dataset.ilxControls = '1';
+      const header = card.querySelector('.ilx-header');
+      const btnWrap = document.createElement('div');
+      btnWrap.style.display = 'flex';
+      btnWrap.style.alignItems = 'center';
+  const fsBtn = document.createElement('button'); fsBtn.className = 'ilx-btn-small'; fsBtn.title = 'Fullscreen';
+  fsBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm19 7h-7v-2h5v-5h2v7z"></path></svg>';
+  const minBtn = document.createElement('button'); minBtn.className = 'ilx-btn-small'; minBtn.title = 'Minimize';
+  minBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19h12v2H6v-2z"></path></svg>';
+      header.appendChild(btnWrap);
+      btnWrap.appendChild(fsBtn);
+      btnWrap.appendChild(minBtn);
+
+      let overlay = null;
+      fsBtn.addEventListener('click', ()=>{
+        if(overlay) return;
+        overlay = document.createElement('div'); overlay.className = 'ilx-fullscreen-overlay';
+        document.documentElement.appendChild(overlay);
+        // move card into overlay
+        overlay.appendChild(card);
+        card.classList.add('ilx-fullscreen');
+      });
+      minBtn.addEventListener('click', ()=>{
+        if(overlay){
+          // move card back to root
+          const root = ensureRoot();
+          root.appendChild(card);
+          card.classList.remove('ilx-fullscreen');
+          overlay.remove(); overlay = null;
+        } else {
+          // if not overlay, just reset size/position
+          card.style.width = '';
+          card.style.height = '';
+          card.style.right = '16px';
+          card.style.bottom = '16px';
+        }
+      });
+    }
+    return body;
+  };
+})();
 
 function detectLayout(text){
   const hasYears = /(19|20)\d{2}/.test(text);
