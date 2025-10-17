@@ -242,6 +242,7 @@ function renderQuiz(quiz, sourceText){
   });
   container.appendChild(questionsWrap);
   const controls = document.createElement('div');
+  controls.className = 'controls';
   const submitBtn = document.createElement('button');
   submitBtn.className = 'ilx-btn';
   submitBtn.textContent = 'Submit';
@@ -255,6 +256,9 @@ function renderQuiz(quiz, sourceText){
     quiz.forEach((q, idx)=>{
       const sel = container.querySelector(`input[name="q${idx}"]:checked`);
       if(sel && sel.value === q.answer) score += 1;
+      // highlight correct option
+      const labels = Array.from(container.querySelectorAll(`label input[name="q${idx}"]`)).map(i=>i.parentElement);
+      labels.forEach(l=>{ const input = l.querySelector('input'); if(input && input.value === q.answer){ l.classList.add('correct'); } });
     });
     const percent = Math.round((score/quiz.length)*100);
     resultWrap.innerHTML = `Result: <strong>${score}</strong> / ${quiz.length} (${percent}%)`;
@@ -400,7 +404,10 @@ function ensureFab(){
   const fab = document.createElement('button');
   fab.className = 'ilx-fab';
   fab.title = 'Interactive Learning';
-  fab.textContent = '⋯';
+  const img = document.createElement('img');
+  img.alt = 'Interactive Learning';
+  img.src = chrome.runtime.getURL('quickstartLogo.png');
+  fab.appendChild(img);
   document.documentElement.appendChild(fab);
   const menu = document.createElement('div');
   menu.className = 'ilx-menu';
