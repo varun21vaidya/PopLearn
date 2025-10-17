@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ChromeHack: Interactive Learning",
+  "name": "PopLearn: Interactive Learning",
   "description": "Transform any article into a summary, mindmap, or quick quiz using Chrome's built-in AI (with offline fallbacks).",
   "version": "0.1.0",
   "action": {
