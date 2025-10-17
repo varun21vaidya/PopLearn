@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "ChromeHack: Interactive Learning",
+  "description": "Transform any article into a summary, mindmap, or quick quiz using Chrome's built-in AI (with offline fallbacks).",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Interactive Learning",
+    "default_popup": "popup/popup.html"
+  },
+  "icons": {
+    "16": "popup.png",
+    "48": "popup.png",
+    "128": "popup.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "libs/readability.js",
+        "libs/jsmind.js",
+        "libs/d3.min.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "options_ui": {
+    "page": "popup/popup.html",
+    "open_in_tab": false
+  }
+}
+

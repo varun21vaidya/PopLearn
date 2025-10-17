@@ -1,0 +1,39 @@
+.ilx-root{position:fixed;right:16px;bottom:16px;z-index:2147483647;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+/* Card styling inspired by summary.png */
+.ilx-card{background:#181a1fcc;color:#eaf1fb;border:1px solid #2a3441;border-radius:16px;backdrop-filter:blur(8px);box-shadow:0 20px 40px rgba(0,0,0,.55);max-width:560px;max-height:62vh;overflow:auto}
+.ilx-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #252f3b}
+.ilx-title{font-weight:700;font-size:14px;letter-spacing:.2px}
+.ilx-close{border:0;background:transparent;color:#b5c3d8;cursor:pointer;font-size:16px}
+.ilx-body{padding:14px;line-height:1.6}
+.ilx-body p{margin:0 0 10px 0}
+.ilx-mindmap svg{display:block;background:#0a0d11;border-radius:10px}
+.ilx-structure{display:flex;flex-direction:column;gap:8px}
+.ilx-structure .item{background:#121722;border:1px solid #2a3441;border-radius:10px;padding:8px 10px}
+.ilx-structure .meta{color:#9fb1c9;font-size:12px;margin-bottom:4px}
+.ilx-structure .label{font-weight:700}
+.ilx-quiz .q{margin:8px 0;font-weight:600}
+.ilx-quiz label{display:block;margin:6px 0}
+.ilx-quiz button{margin-top:8px}
+/* Quiz UI inspired by mcq.png */
+.ilx-quiz .ilx-btn{appearance:none;border:1px solid #dae4f3;background:#ffffff;color:#0f1216;border-radius:12px;padding:10px 14px;box-shadow:0 6px 14px rgba(0,0,0,.12);cursor:pointer;transition:transform .02s ease, box-shadow .15s ease, background .15s ease}
+.ilx-quiz .ilx-btn:hover{background:#f7faff;box-shadow:0 10px 20px rgba(0,0,0,.16)}
+.ilx-quiz .ilx-btn:active{transform:translateY(1px)}
+.ilx-quiz .ilx-btn:disabled{background:#eef2f7;color:#7a8595;border-color:#dfe6f2;cursor:not-allowed;box-shadow:none}
+.ilx-quiz .q{font-size:14px;font-weight:700;color:#eaf1fb}
+.ilx-quiz label{background:#121722;border:1px solid #2a3441;border-radius:12px;padding:8px 10px;margin:6px 0}
+.ilx-quiz input[type="radio"]{margin-right:8px}
+
+.ilx-fab{position:fixed;right:22px;bottom:22px;width:56px;height:56px;border-radius:16px;background:linear-gradient(180deg,#ffffff,#eef3ff);color:#0b1220;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(0,0,0,.28), inset 0 1px 0 #fff;cursor:pointer;border:1px solid #d8e2f1;font-weight:700;z-index:2147483647}
+.ilx-fab:hover{box-shadow:0 14px 28px rgba(0,0,0,.32), inset 0 1px 0 #fff}
+.ilx-menu{position:fixed;right:22px;bottom:86px;display:none;gap:10px;flex-direction:column}
+.ilx-menu.ilx-open{display:flex}
+.ilx-menu button{border:1px solid #d8e2f1;border-radius:14px;padding:10px 14px;background:#ffffff;color:#0b1220;cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,.12), inset 0 1px 0 #fff;text-align:left;min-width:200px}
+.ilx-menu button:hover{background:#f6f9ff}
+.ilx-summary-img{max-width:100%;border-radius:12px;margin:0 0 10px 0;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.ilx-actions{display:flex;gap:8px;margin-bottom:8px}
+.ilx-actions button{border:0;border-radius:8px;padding:6px 10px;background:#1e2a3a;color:#e4ecf7;cursor:pointer}
+.ilx-close:focus, .ilx-quiz .ilx-btn:focus, .ilx-fab:focus, .ilx-menu button:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
