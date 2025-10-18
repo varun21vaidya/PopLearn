@@ -130,7 +130,7 @@
 .ilx-actions button{border:0;border-radius:8px;padding:6px 10px;background:#1e2a3a;color:#e4ecf7;cursor:pointer}
 .ilx-quiz .controls{display:flex;gap:8px;margin-top:8px}
 .ilx-quiz .ilx-btn{margin-right:8px}
-.ilx-quiz label.correct{background:#103a1a;border-color:#1f6a33;color:#d9ffe6}
+.ilx-quiz label.correct{background:#103a1a;border-color:#1f6a33;color:#d9ffe6} label.incorrect{background:#3a1010;border-color:#6a1f1f;color:#ffd9d9}
 .ilx-close:focus, .ilx-quiz .ilx-btn:focus, .ilx-fab:focus, .ilx-menu button:focus {
   outline: 2px solid #4a90e2;
   outline-offset: 2px;

@@ -355,6 +355,11 @@ function renderQuiz(quiz, sourceText){
       // highlight correct option
       const labels = Array.from(container.querySelectorAll(`label input[name="q${idx}"]`)).map(i=>i.parentElement);
       labels.forEach(l=>{ const input = l.querySelector('input'); if(input && input.value === q.answer){ l.classList.add('correct'); } });
+      // highlight incorrect selection
+      if(sel && sel.value !== q.answer){
+        const selLabel = sel.parentElement;
+        selLabel.classList.add('incorrect');
+      }
     });
     const percent = Math.round((score/quiz.length)*100);
     resultWrap.innerHTML = `Result: <strong>${score}</strong> / ${quiz.length} (${percent}%)`;
