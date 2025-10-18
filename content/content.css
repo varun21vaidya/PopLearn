@@ -32,8 +32,39 @@
 .ilx-quiz label{background:#121722;border:1px solid #2a3441;border-radius:12px;padding:8px 10px;margin:6px 0;color:#fff}
 .ilx-quiz input[type="radio"]{margin-right:8px}
 
-.ilx-fab{position:fixed;right:22px;bottom:22px;width:56px;height:56px;border-radius:16px;background:linear-gradient(180deg,#ffffff,#eef3ff);color:#0b1220;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(0,0,0,.28), inset 0 1px 0 #fff;cursor:pointer;border:1px solid #d8e2f1;font-weight:700;z-index:2147483647;overflow:hidden}
-.ilx-fab img{width:100%;height:100%;object-fit:cover;border-radius:16px}
+.ilx-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fff 60%, #eef3ff 90%, #dbeafe 100%);
+  color: #0b1220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px 0 rgba(0,0,0,.22), 0 2px 8px #fff;
+  cursor: pointer;
+  border: 2px solid #13294b; /* navy blue outer border */
+  box-sizing: border-box;
+  font-weight: 700;
+  z-index: 2147483647;
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  padding: 2.5px;
+}
+.ilx-fab img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  background: transparent;
+  display: block;
+  box-shadow: none;
+  border: 2.5px solid #fff; /* inner white border */
+  box-sizing: border-box;
+}
 .ilx-fab:hover{box-shadow:0 14px 28px rgba(0,0,0,.32), inset 0 1px 0 #fff}
 .ilx-menu{position:fixed;right:22px;bottom:86px;display:none;gap:10px;flex-direction:column}
 .ilx-menu.ilx-open{display:flex}

@@ -219,73 +219,66 @@ function detectLayout(text){
   const hasSteps = /(step\s?\d+|first,|second,|then,|finally)/i.test(text);
   if(hasYears) return 'timeline';
   if(hasSteps) return 'process';
-  return 'map';
+  return 'process'; // Default to process
 }
 
-function renderMindmap(title, topics, layout){
+function renderMindmap(title, topics, layout) {
   const body = mountCard('Mindmap');
-  const w = 520, h = 320, cx = w/2, cy = h/2, r = 120;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('width', String(w));
-  svg.setAttribute('height', String(h));
-  svg.innerHTML = `<defs><style>
-    text{fill:#cfe3ff;font:12px system-ui}
-    .node{fill:#17324d;stroke:#2c4e70;stroke-width:1}
-    .center{fill:#0a2340;stroke:#3b6ea8}
-    .link{stroke:#385b82;stroke-width:1}
-  </style></defs>`;
-  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  svg.appendChild(g);
-  // center
-  const center = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  center.setAttribute('class','center');
-  center.setAttribute('cx', String(cx));
-  center.setAttribute('cy', String(cy));
-  center.setAttribute('r','34');
-  g.appendChild(center);
-  const cText = document.createElementNS('http://www.w3.org/2000/svg','text');
-  cText.setAttribute('x', String(cx));
-  cText.setAttribute('y', String(cy+4));
-  cText.setAttribute('text-anchor','middle');
-  cText.textContent = (title||'Topic').slice(0,20);
-  g.appendChild(cText);
-  // satellites by layout
-  topics.forEach((t, i)=>{
-    let x, y;
-    if(layout === 'timeline'){
-      x = 40 + (i * ((w-80)/Math.max(1, topics.length-1)));
-      y = h/2 + ((i%2===0)? -60 : 60);
-    } else if(layout === 'process'){
-      x = 80 + (i * ((w-160)/Math.max(1, topics.length-1)));
-      y = h/2;
-    } else { // map
-      const angle = (i / topics.length) * Math.PI * 2;
-      x = cx + r * Math.cos(angle);
-      y = cy + r * Math.sin(angle);
-    }
-    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('class','link');
-    line.setAttribute('x1', String(cx));
-    line.setAttribute('y1', String(cy));
-    line.setAttribute('x2', String(x));
-    line.setAttribute('y2', String(y));
-    g.appendChild(line);
-    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('class','node');
-    c.setAttribute('cx', String(x));
-    c.setAttribute('cy', String(y));
-    c.setAttribute('r','20');
-    g.appendChild(c);
-    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-    text.setAttribute('x', String(x));
-    text.setAttribute('y', String(y+4));
-    text.setAttribute('text-anchor','middle');
-    text.textContent = t.slice(0,14);
-    g.appendChild(text);
-  });
   const wrap = document.createElement('div');
-  wrap.className = 'ilx-mindmap';
-  wrap.appendChild(svg);
+  wrap.className = 'ilx-mindmap-html';
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.alignItems = 'center';
+  wrap.style.gap = '16px';
+
+  // Central topic
+  const center = document.createElement('div');
+  center.className = 'ilx-mindmap-center';
+  center.textContent = (title || 'Topic').slice(0, 40);
+  center.style.fontWeight = 'bold';
+  center.style.background = '#0a2340';
+  center.style.color = '#fff';
+  center.style.padding = '10px 24px';
+  center.style.borderRadius = '24px';
+  center.style.fontSize = '1.2em';
+  center.style.boxShadow = '0 2px 8px #0002';
+  wrap.appendChild(center);
+
+  // Topics row
+  const topicsRow = document.createElement('div');
+  topicsRow.style.display = 'flex';
+  topicsRow.style.flexWrap = 'wrap';
+  topicsRow.style.justifyContent = 'center';
+  topicsRow.style.gap = '12px';
+
+  topics.forEach((t) => {
+    const node = document.createElement('div');
+    node.className = 'ilx-mindmap-node';
+    node.textContent = t;
+    node.style.background = '#17324d';
+    node.style.color = '#cfe3ff';
+    node.style.padding = '8px 18px';
+    node.style.borderRadius = '18px';
+    node.style.cursor = 'pointer';
+    node.style.boxShadow = '0 1px 4px #0001';
+    node.style.transition = 'background 0.2s';
+    node.addEventListener('mouseenter', () => {
+      node.style.background = '#2c4e70';
+    });
+    node.addEventListener('mouseleave', () => {
+      node.style.background = '#17324d';
+    });
+    node.title = 'Click to copy topic';
+    node.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(t);
+        node.textContent = 'Copied!';
+        setTimeout(() => { node.textContent = t; }, 900);
+      } catch {}
+    });
+    topicsRow.appendChild(node);
+  });
+  wrap.appendChild(topicsRow);
   body.appendChild(wrap);
 }
 

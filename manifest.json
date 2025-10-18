@@ -7,11 +7,6 @@
     "default_title": "Interactive Learning",
     "default_popup": "popup/popup.html"
   },
-  "icons": {
-    "16": "popup.png",
-    "48": "popup.png",
-    "128": "popup.png"
-  },
   "permissions": [
     "activeTab",
     "scripting",
