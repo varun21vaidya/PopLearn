@@ -109,7 +109,18 @@
   box-sizing: border-box;
 }
 .ilx-fab:hover{box-shadow:0 14px 28px rgba(0,0,0,.32), inset 0 1px 0 #fff}
-.ilx-menu{position:fixed;right:22px;bottom:86px;display:none;gap:10px;flex-direction:column}
+.ilx-menu {
+    position: fixed;
+    right: 22px;
+    bottom: 86px;
+    display: none;
+    gap: 10px;
+    flex-direction: column;
+    
+    z-index: 2147483647 !important;  /* Maximum z-index */
+    isolation: isolate;               /* Create stacking context */
+}
+
 .ilx-menu.ilx-open{display:flex}
 .ilx-menu button{
   border:1px solid #d8e2f1;
@@ -184,3 +195,23 @@
   outline-offset: 2px;
 }
 
+/* Force GPU layer and prevent stacking issues */
+.ilx-fab,
+.ilx-menu,
+.ilx-card {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* Ensure menu is always visible when open */
+.ilx-menu.ilx-open {
+    transform: translateZ(0) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Ensure menu buttons are in proper stacking context */
+.ilx-menu button {
+    position: relative;
+    z-index: 1;
+}
