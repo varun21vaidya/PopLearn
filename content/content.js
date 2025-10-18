@@ -110,7 +110,12 @@ function mountCard(title){
   // create top-left handle for resizing while keeping bottom-right fixed
   const resizer = document.createElement('div');
   resizer.className = 'ilx-resizer-tl';
+  // add a small expand icon inside the resizer for clarity
+  resizer.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h6V4H4v8h2V6zm12 12h-6v2h8v-8h-2v6zM6 18h2v-6H4v8h8v-2H6zM18 6v2h2V4h-8v2h6z"></path></svg>';
   card.appendChild(resizer);
+  // center title for all cards
+  const t = card.querySelector('.ilx-title');
+  if(t) t.classList.add('centered');
   (function(){
     let dragging = false, startX=0, startY=0, startW=0, startH=0;
     resizer.addEventListener('mousedown', (e)=>{
@@ -174,6 +179,13 @@ function renderSummary(summary, image){
     if(card && !card.dataset.ilxControls){
       card.dataset.ilxControls = '1';
       const header = card.querySelector('.ilx-header');
+      // create a controls wrapper on the right side to hold fullscreen, minimize and close
+      let controls = header.querySelector('.ilx-controls');
+      if(!controls){
+        controls = document.createElement('div');
+        controls.className = 'ilx-controls';
+        header.appendChild(controls);
+      }
       const btnWrap = document.createElement('div');
       btnWrap.style.display = 'flex';
       btnWrap.style.alignItems = 'center';
@@ -181,9 +193,13 @@ function renderSummary(summary, image){
   fsBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v2H5v5H3V3zm11 0h7v7h-2V5h-5V3zM3 14h2v5h5v2H3v-7zm19 7h-7v-2h5v-5h2v7z"></path></svg>';
   const minBtn = document.createElement('button'); minBtn.className = 'ilx-btn-small'; minBtn.title = 'Minimize';
   minBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19h12v2H6v-2z"></path></svg>';
-      header.appendChild(btnWrap);
-      btnWrap.appendChild(fsBtn);
-      btnWrap.appendChild(minBtn);
+  // Append button group before the close button
+  controls.appendChild(btnWrap);
+  btnWrap.appendChild(fsBtn);
+  btnWrap.appendChild(minBtn);
+  // move existing close button into controls so it stays aligned
+  const closeBtn = card.querySelector('.ilx-close');
+  if(closeBtn){ controls.appendChild(closeBtn); }
 
       let overlay = null;
       fsBtn.addEventListener('click', ()=>{
@@ -224,6 +240,12 @@ function detectLayout(text){
 
 function renderMindmap(title, topics, layout) {
   const body = mountCard('Mindmap');
+  // make sure the header title reads 'Mindmap' (mountCard centers titles)
+  const cardEl = body.closest('.ilx-card');
+  if(cardEl){
+    const hdrTitle = cardEl.querySelector('.ilx-title');
+    if(hdrTitle) hdrTitle.textContent = 'Mindmap';
+  }
   const wrap = document.createElement('div');
   wrap.className = 'ilx-mindmap-html';
   wrap.style.display = 'flex';
