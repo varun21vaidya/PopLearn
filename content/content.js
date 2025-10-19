@@ -141,7 +141,36 @@ function mountCard(title){
     }
     function onUp(){ dragging = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
   })();
-  return card.querySelector('.ilx-body');
+  // return card.querySelector('.ilx-body');
+  const body = card.querySelector('.ilx-body');
+  installLoader(body);
+  return body;
+}
+
+function installLoader(body) {
+  if (!body || body.querySelector('.ilx-loader')) return;
+  const loader = document.createElement('div');
+  loader.className = 'ilx-loader hidden';
+  loader.innerHTML = `
+    <div class="ilx-spinner"></div>
+    <div class="ilx-status">Loading…</div>
+  `;
+  body.appendChild(loader);
+}
+
+// 2) ADD loader helpers anywhere below your mount/render utilities
+function showLoader(body, text = 'Loading…') {
+  const loader = body?.querySelector('.ilx-loader');
+  if (!loader) return;
+  const status = loader.querySelector('.ilx-status');
+  if (status && text) status.textContent = text;
+  loader.classList.remove('hidden');
+}
+
+function hideLoader(body) {
+  const loader = body?.querySelector('.ilx-loader');
+  if (!loader) return;
+  loader.classList.add('hidden');
 }
 
 function renderSummary(summary, image){
@@ -217,7 +246,10 @@ function renderSummary(summary, image){
           const root = ensureRoot();
           root.appendChild(card);
           card.classList.remove('ilx-fullscreen');
-          overlay.remove(); overlay = null;
+          // Force DOM reflow before removing overlay
+          overlay.offsetHeight; // Force reflow
+          overlay.remove();
+          overlay = null;
         } else {
           // if not overlay, just reset size/position
           card.style.width = '';
@@ -369,9 +401,16 @@ function renderQuiz(quiz, sourceText){
     resetBtn.className = 'ilx-btn';
     resetBtn.textContent = 'New Questions';
     resetBtn.addEventListener('click', async ()=>{
+      // Clear the card content first
+      body.innerHTML = '';
+      // Now show the loader in the empty card
+      installLoader(body);
+      showLoader(body, 'Loading Quiz Questions...');
+      
       const newQuiz = await buildQuiz(sourceText);
       const card = body.closest('.ilx-card');
       if(card) card.remove();
+
       renderQuiz(newQuiz, sourceText);
     });
     controls.appendChild(resetBtn);
@@ -461,28 +500,37 @@ async function buildQuizWithAI_Universal(text) {
 
         const prompt = `Create 5 multiple-choice questions from this content.
 
-STRICT RULES:
-1. All 4 options must be THE SAME TYPE (all years, all names, all places, all numbers)
-2. All options must fit grammatically when replacing _____
-3. NO garbage words (Updated, Posted, Share, Subscribe, Views, Comments)
-4. Use fill-in-blank format with _____
-5. Base questions ONLY on information in the text
+        STRICT RULES:
+        1. All 4 options must be THE SAME SEMANTIC TYPE. If the correct answer is a list of proper nouns (e.g., "A, B, and C"), all three distractors must be **plausible, similarly structured lists** of proper nouns from the content (e.g., "X, Y, and Z"). If the answer is a single entity name (e.g., "Google"), all distractors must be single entity names (e.g., "Apple", "Microsoft"). **Absolutely no mixing of named entities with generic roles or groups.**
+        2. All options must fit grammatically when replacing _____
+        3. NO garbage words (Updated, Posted, Share, Subscribe, Views, Comments)
+        4. Use fill-in-blank format with _____
+        5. Base questions ONLY on information in the text
+        6. Answer must be one of the options
 
-Example good question:
-{"question": "World War II ended in _____.", "options": ["1943", "1944", "1945", "1946"], "answer": "1945"}
+        It Should not have 
+        1. Missing required fields
+        2. Invalid options array (should have exactly 4 options)
+        3. Invalid option format
+        4. Duplicate options
+        5. Answer not in options
+        6. No blank in question
+        7. Garbage words or None of the above or All of the above
 
-Content:
-${preparedText}
+        Example good question:
+        {"question": "World War II ended in _____.", "options": ["1943", "1944", "1945", "1946"], "answer": "1945"}
 
-Output ONLY valid JSON array:
-[{"question": "Complete sentence with _____?", "options": ["opt1", "opt2", "opt3", "opt4"], "answer": "correct_option"}]`;
+        Content:
+        ${preparedText}
 
+        Output ONLY valid JSON array in this exact format where answer should be one of the options:
+        [{"question": "Complete sentence with _____?", "options": ["opt1", "opt2", "opt3", "opt4"], "answer": "correct_option"}]`;
         console.log('🔄 Streaming AI response...');
         let fullResponse = '';
         const stream = session.promptStreaming(prompt);
 
         for await (const chunk of stream) {
-            fullResponse = chunk;
+            fullResponse += chunk;
         }
 
         console.log('📥 AI response length:', fullResponse.length);
@@ -494,28 +542,66 @@ Output ONLY valid JSON array:
             .replace(/```$/, '');       // Remove closing ```
 
         // Extract JSON from the *cleaned* response
-        const jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
-        if (!jsonMatch) {
-            console.error('❌ No JSON found in AI response (after cleaning)');
-            throw new Error('No valid JSON');
-        }
+// NEW: Clean the response more aggressively
+let cleanedResponse = fullResponse
+    .replace(/^``````json (case insensitive)
+    .replace(/``````
+    .replace(/^`````` at start
+    .trim();
 
-        console.log('✅ JSON extracted, parsing...');
-        const questions = JSON.parse(jsonMatch[0]);
+    // Try to extract JSON array - be more lenient
+    let jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
+
+    // If no match, try to find JSON starting with [ and ending with ]
+    if (!jsonMatch) {
+        const startIdx = cleanedResponse.indexOf('[');
+        const endIdx = cleanedResponse.lastIndexOf(']');
+        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+            cleanedResponse = cleanedResponse.substring(startIdx, endIdx + 1);
+            jsonMatch = [cleanedResponse];
+        }
+    }
+
+    if (!jsonMatch) {
+        console.error('❌ No JSON found in AI response (after cleaning)');
+        console.error('Response preview:', cleanedResponse.substring(0, 500));
+        throw new Error('No valid JSON');
+    }
+
+    console.log('✅ JSON extracted, parsing...');
+    console.log('JSON to parse:', jsonMatch[0].substring(0, 300) + '...');
+
+    let questions;
+    try {
+        // Fix common JSON errors before parsing
+        let jsonStr = jsonMatch[0]
+            .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+            .replace(/'/g, '"')              // Replace single quotes with double quotes
+            .replace(/(\w+):/g, '"$1":');    // Add quotes to unquoted keys
+        
+        questions = JSON.parse(jsonStr);
+    } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError.message);
+        console.error('Problematic JSON:', jsonMatch[0]);
+        throw new Error('Invalid JSON format: ' + parseError.message);
+    }
+
         console.log(`📊 Parsed ${questions.length} questions from AI`);
 
         // Validate each question
         const validated = [];
         for (let i = 0; i < questions.length; i++) {
             const q = questions[i];
-            console.log(`🔍 Validating question ${i + 1}:`, q.question?.substring(0, 50));
-
-            if (validateQuestionUniversal(q, preparedText)) {
-                validated.push({
+            const validObj = {
                     question: q.question.trim(),
                     options: q.options.map(o => o.trim()),
                     answer: q.answer.trim()
-                });
+                }
+            console.log(`🔍 valid question ${i + 1}:`, JSON.stringify(validObj));
+
+
+            if (validateQuestionUniversal(q, preparedText)) {
+                validated.push(validObj);
                 console.log(`   ✅ Question ${i + 1} valid`);
             } else {
                 console.log(`   ❌ Question ${i + 1} rejected`);
@@ -566,12 +652,7 @@ function validateQuestionUniversal(q, text) {
     if (!q.options.includes(q.answer)) {
         console.log('   ❌ Answer not in options:', q.answer);
         return false;
-    }
-
-    if (!q.question.includes('_____')) {
-        console.log('   ❌ No blank in question');
-        return false;
-    }
+    } 
 
     // Check for garbage words
     const garbage = ['updated', 'posted', 'share', 'subscribe', 'follow', 'views', 'comments'];
@@ -603,28 +684,19 @@ function validateQuestionUniversal(q, text) {
  */
 function detectType(opt) {
     const trimmed = opt.trim();
-
-    // Year
-    if (/^\d{4}$/.test(trimmed)) {
-        const year = parseInt(trimmed);
-        if (year >= 1500 && year <= 2100) return 'year';
+    // if lowercase(option) is empty or none of the above or all of the above then invalid 
+    if (!trimmed || /^(none|all) of the above$/i.test(trimmed)) {
+        return 'invalid';
     }
-
     // Number
     if (/^\d+[.,]?\d*\s*(million|billion|thousand|%|percent)?$/i.test(trimmed)) {
         return 'number';
     }
 
     // Proper noun (capitalized)
-    if (/^[A-Z]/.test(trimmed) && trimmed.split(' ').length <= 4) {
-        return 'proper_noun';
+    if (/^[A-Z]/.test(trimmed)) {
+        return 'string';
     }
-
-    // Noun phrase
-    if (trimmed.split(' ').length <= 5) {
-        return 'noun_phrase';
-    }
-
     return 'unknown';
 }
 
@@ -732,35 +804,52 @@ async function buildQuizContentAware(text) {
 
 
 
-async function onAction(action){
+// 3) UPDATE your onAction to display a temporary loading card
+//    during async work, then remove it and render the final UI.
+async function onAction(action) {
   const { title, text, image } = await extractArticle();
-  if(!text) return;
-  if(action === 'simplify'){
-    const summary = await summarizeText(text);
-    renderSummary(summary, image);
-  } else if(action === 'mindmap'){
+  if (!text) return;
+
+  if (action === 'simplify') {
+    const tempBody = mountCard('Summary');
+    showLoader(tempBody, 'Summarizing…');
+    try {
+      const summary = await summarizeText(text);
+      tempBody.closest('.ilx-card')?.remove();
+      renderSummary(summary, image);
+    } catch (e) {
+      tempBody.closest('.ilx-card')?.remove();
+      const body = mountCard('Summary');
+      body.innerHTML = `<p>Failed to summarize. Please try again.</p>`;
+    }
+  } else if (action === 'mindmap') {
+    const tempBody = mountCard('Mindmap');
+    showLoader(tempBody, 'Analyzing…');
     let layout = detectLayout(text);
     let structuredItems = null;
-    // Ask on-device LM to choose layout and optionally emit structured JSON
-    try{
-      // UPDATED: Check for global 'LanguageModel'
-      if('LanguageModel' in self){
-        // UPDATED: Use .availability()
+
+    try {
+      // Optional: adaptive layout via LanguageModel if available
+      if ('LanguageModel' in self) {
         const availability = await LanguageModel.availability();
-        if(availability === 'available'){ // UPDATED: Check for 'available' state
-          // UPDATED: Use global LanguageModel.create()
+        if (availability === 'available') {
           const session = await LanguageModel.create();
-          const ask = `Analyze the passage and choose one visualization: timeline, process, or map. If timeline or process, return JSON ONLY with {layout:"timeline|process", items:[{date?:string, label:string, desc?:string}]}. If map, return JSON ONLY with {layout:"map", topics:[string]}. Passage:\n\n${text.slice(0,2500)}`;
+          const ask = `Analyze the passage and choose one visualization (timeline, process).
+If timeline or process, return JSON ONLY with { "layout": "timeline"|"process", "items": [{ "date"?: string, "label": string, "desc"?: string }] }.
+Passage: ${text.slice(0, 2500)}`;
           const res = await session.prompt(ask);
           const jsonStart = res.indexOf('{');
           const data = JSON.parse(res.slice(jsonStart));
-          if(data?.layout){ layout = data.layout; }
-          if(data?.items) structuredItems = data.items;
-          if(data?.topics) structuredItems = data.topics;
+          if (data?.layout) layout = data.layout;
+          if (data?.items) structuredItems = data.items;
+          if (data?.topics) structuredItems = data.topics;
         }
       }
-    }catch(_e){ }
-    if(layout === 'map'){
+    } catch (_) {
+      // proceed with defaults
+    }
+    tempBody.closest('.ilx-card')?.remove();
+    if (layout === 'map') {
       const topics = Array.isArray(structuredItems) ? structuredItems : extractTopics(text);
       renderMindmap(title, topics, 'map');
     } else {
@@ -771,9 +860,18 @@ async function onAction(action){
       }
       renderStructuredText(layout, structuredItems);
     }
-  } else if(action === 'quiz'){
-    const quiz = await buildQuiz(text);
-    renderQuiz(quiz, text);
+  } else if (action === 'quiz') {
+    const tempBody = mountCard('Quick Quiz');
+    showLoader(tempBody, 'Generating questions…');
+    try {
+      const quiz = await buildQuiz(text);
+      tempBody.closest('.ilx-card')?.remove();
+      renderQuiz(quiz, text);
+    } catch (e) {
+      tempBody.closest('.ilx-card')?.remove();
+      const body = mountCard('Quick Quiz');
+      body.innerHTML = `<p>Failed to generate quiz. Please try again.</p>`;
+    }
   }
 }
 
