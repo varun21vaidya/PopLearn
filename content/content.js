@@ -1,4 +1,4 @@
-/* global chrome */
+/* global chrome, LanguageModel, Summarizer */
 
 // Lightweight article extraction using Readability when available.
 async function extractArticle(){
@@ -34,10 +34,11 @@ async function extractArticle(){
 // Summarizer API (built-in) with graceful fallback
 async function summarizeText(text){
   try{
-    if('ai' in self && ai.summarizer){
-      const cap = await ai.summarizer.capabilities();
-      if(cap.available === 'readily'){ 
-        const s = await ai.summarizer.create({ type: 'article' });
+    // UPDATED: Check for global 'Summarizer' and use .availability()
+    if('Summarizer' in self){
+      const availability = await Summarizer.availability();
+      if(availability === 'available'){ // UPDATED: Check for 'available' state
+        const s = await Summarizer.create({ type: 'article' }); // UPDATED: Use global Summarizer
         // Request more detailed output
         return await s.summarize(text, { length: 'long' });
       }
@@ -393,63 +394,343 @@ function uniqueOptions(correct, pool){
   return Array.from(options).sort(()=>Math.random()-0.5);
 }
 
-async function buildQuiz(text){
-  // Prefer Prompt API if present
-  try{
-    if('ai' in self && ai.languageModel){
-      const cap = await ai.languageModel.capabilities();
-      if(cap.available === 'readily'){
-        const session = await ai.languageModel.create();
-        const prompt = `Create 5 multiple‑choice questions by masking key facts from the passage. Each question should be phrased as: \\"Fill in the blank: <sentence with one word/phrase replaced by ____>\\". Provide 4 distinct options with exactly one correct answer. Return ONLY strict JSON array: [{\\"question\\":string,\\"options\\":[string,string,string,string],\\"answer\\":string}]. Avoid UI debris like 'Member-only story', 'Listen', 'Share'. Passage:\n\n${text.slice(0,3000)}`;
-        const res = await session.prompt(prompt);
-        const jsonStart = res.indexOf('[');
-        const json = JSON.parse(res.slice(jsonStart));
-        return json;
-      }
+
+// ========================================
+// COMPLETE WORKING QUIZ SYSTEM WITH DEBUG
+// ========================================
+
+/**
+ * Main entry point - Universal quiz generation
+ */
+async function buildQuiz(text) {
+    console.log('🎯 buildQuiz called with text length:', text?.length || 0);
+
+    if (!text || text.length < 100) {
+        console.error('❌ Text too short or empty');
+        return [];
     }
-  }catch(_e){ }
-  // Fallback: entity-mask questions from sentences
-  function splitSentences(t){ return cleanNoise(t).split(/(?<=[.!?])\s+/).filter(s=>s.trim().length>40).slice(0,40); }
-  // naive entity extraction
-  function extractEntitiesFromSentence(s){
-    const dates = (s.match(/\b(\d{4}|January|February|March|April|May|June|July|August|September|October|November|December)\b/gi)||[]);
-    const caps = (s.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g)||[]).filter(w=>!['The','A','An','In','On','At','For','With','And','Of','To'].includes(w));
-    const nums = (s.match(/\b\d+[\w-]*\b/g)||[]);
-    return { dates, caps, nums };
-  }
-  function makeQuestionFromSentence(s, pool){
-    const ents = extractEntitiesFromSentence(s);
-    if(ents.dates.length){
-      const ans = ents.dates[0];
-      const q = s.replace(ans,'____');
-      return { question: `${q}`, answer: ans, options: uniqueOptions(ans, pool.dates.filter(x=>x!==ans)) };
+
+    // Try Chrome AI first
+    try {
+        // UPDATED: Check for global 'LanguageModel'
+        if ('LanguageModel' in self) {
+            console.log('🔍 Checking Chrome AI availability...');
+            // UPDATED: Use .availability()
+            const availability = await LanguageModel.availability();
+            console.log('📊 AI availability:', availability);
+
+            // UPDATED: Check for 'available' state
+            if (availability === 'available') {
+                console.log('✅ Using Chrome AI for quiz generation');
+                const aiQuiz = await buildQuizWithAI_Universal(text);
+                if (aiQuiz && aiQuiz.length > 0) {
+                    console.log(`✅ AI generated ${aiQuiz.length} questions`);
+                    return aiQuiz;
+                }
+                console.log('⚠️ AI returned empty, falling back');
+            }
+        } else {
+            console.log('ℹ️ Chrome AI not available (LanguageModel global not found)');
+        }
+    } catch (e) {
+        console.log('⚠️ Chrome AI error:', e.message);
     }
-    if(ents.caps.length){
-      const ans = ents.caps[0];
-      const q = s.replace(ans,'____');
-      return { question: `${q}`, answer: ans, options: uniqueOptions(ans, pool.caps.filter(x=>x!==ans)) };
-    }
-    if(ents.nums.length){
-      const ans = ents.nums[0];
-      const q = s.replace(ans,'____');
-      return { question: `${q}`, answer: ans, options: uniqueOptions(ans, pool.nums.filter(x=>x!==ans)) };
-    }
-    // fallback to topic term
-    const topics = extractTopics(s);
-    const ans = topics[0]||'concept';
-    const base = cleanNoise(s).slice(0,160);
-    return { question: `${base} …`, answer: ans, options: uniqueOptions(ans, extractTopics(text)) };
-  }
-  const sentences = splitSentences(text);
-  const pool = sentences.reduce((acc,s)=>{
-    const e = extractEntitiesFromSentence(s);
-    acc.dates.push(...e.dates); acc.caps.push(...e.caps); acc.nums.push(...e.nums); return acc;
-  }, { dates:[], caps:[], nums:[] });
-  const selected = pick(sentences, 5);
-  const qs = selected.map(s=>makeQuestionFromSentence(s, pool));
-  // normalize to shape
-  return qs.map(q=>({ question: q.question, options: q.options.slice(0,4), answer: q.answer }));
+
+    // Fallback to content-aware generation
+    console.log('📚 Using content-aware fallback');
+    const fallbackQuiz = await buildQuizContentAware(text);
+    console.log(`📊 Fallback generated ${fallbackQuiz?.length || 0} questions`);
+    return fallbackQuiz || [];
 }
+
+/**
+ * Chrome AI powered quiz generation
+ */
+async function buildQuizWithAI_Universal(text) {
+    try {
+        console.log('🤖 Creating AI session...');
+        // UPDATED: Use global LanguageModel.create()
+        const session = await LanguageModel.create({
+            temperature: 0.4,
+            topK: 25,
+            systemPrompt: 'You create quiz questions based ONLY on provided content.'
+        });
+
+        const preparedText = cleanNoise(text).slice(0, 5000);
+        console.log('📝 Prepared text length:', preparedText.length);
+
+        const prompt = `Create 5 multiple-choice questions from this content.
+
+STRICT RULES:
+1. All 4 options must be THE SAME TYPE (all years, all names, all places, all numbers)
+2. All options must fit grammatically when replacing _____
+3. NO garbage words (Updated, Posted, Share, Subscribe, Views, Comments)
+4. Use fill-in-blank format with _____
+5. Base questions ONLY on information in the text
+
+Example good question:
+{"question": "World War II ended in _____.", "options": ["1943", "1944", "1945", "1946"], "answer": "1945"}
+
+Content:
+${preparedText}
+
+Output ONLY valid JSON array:
+[{"question": "Complete sentence with _____?", "options": ["opt1", "opt2", "opt3", "opt4"], "answer": "correct_option"}]`;
+
+        console.log('🔄 Streaming AI response...');
+        let fullResponse = '';
+        const stream = session.promptStreaming(prompt);
+
+        for await (const chunk of stream) {
+            fullResponse = chunk;
+        }
+
+        console.log('📥 AI response length:', fullResponse.length);
+        console.log('📄 AI response preview:', fullResponse.substring(0, 200));
+
+        // NEW: Clean the response to remove markdown wrappers before parsing
+        const cleanedResponse = fullResponse
+            .replace(/^```json\s*/, '') // Remove opening ```json
+            .replace(/```$/, '');       // Remove closing ```
+
+        // Extract JSON from the *cleaned* response
+        const jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
+        if (!jsonMatch) {
+            console.error('❌ No JSON found in AI response (after cleaning)');
+            throw new Error('No valid JSON');
+        }
+
+        console.log('✅ JSON extracted, parsing...');
+        const questions = JSON.parse(jsonMatch[0]);
+        console.log(`📊 Parsed ${questions.length} questions from AI`);
+
+        // Validate each question
+        const validated = [];
+        for (let i = 0; i < questions.length; i++) {
+            const q = questions[i];
+            console.log(`🔍 Validating question ${i + 1}:`, q.question?.substring(0, 50));
+
+            if (validateQuestionUniversal(q, preparedText)) {
+                validated.push({
+                    question: q.question.trim(),
+                    options: q.options.map(o => o.trim()),
+                    answer: q.answer.trim()
+                });
+                console.log(`   ✅ Question ${i + 1} valid`);
+            } else {
+                console.log(`   ❌ Question ${i + 1} rejected`);
+            }
+        }
+
+        console.log(`✅ Validated ${validated.length} questions`);
+        session.destroy();
+
+        if (validated.length >= 3) {
+            return validated.slice(0, 5);
+        }
+
+        console.log('⚠️ Not enough valid questions from AI');
+        throw new Error('Insufficient quality');
+
+    } catch (e) {
+        console.error('❌ AI quiz generation failed:', e);
+        return null;
+    }
+}
+
+/**
+ * Validate question with logging
+ */
+function validateQuestionUniversal(q, text) {
+    if (!q || !q.question || !q.options || !q.answer) {
+        console.log('   ❌ Missing required fields');
+        return false;
+    }
+
+    if (!Array.isArray(q.options) || q.options.length !== 4) {
+        console.log('   ❌ Invalid options array:', q.options?.length);
+        return false;
+    }
+
+    if (!q.options.every(o => typeof o === 'string' && o.length > 0)) {
+        console.log('   ❌ Invalid option format');
+        return false;
+    }
+
+    const unique = new Set(q.options.map(o => o.toLowerCase().trim()));
+    if (unique.size !== 4) {
+        console.log('   ❌ Duplicate options:', q.options);
+        return false;
+    }
+
+    if (!q.options.includes(q.answer)) {
+        console.log('   ❌ Answer not in options:', q.answer);
+        return false;
+    }
+
+    if (!q.question.includes('_____')) {
+        console.log('   ❌ No blank in question');
+        return false;
+    }
+
+    // Check for garbage words
+    const garbage = ['updated', 'posted', 'share', 'subscribe', 'follow', 'views', 'comments'];
+    for (const opt of q.options) {
+        const lower = opt.toLowerCase().trim();
+        if (garbage.includes(lower)) {
+            console.log('   ❌ Garbage word detected:', opt);
+            return false;
+        }
+        if (opt.length < 2) {
+            console.log('   ❌ Option too short:', opt);
+            return false;
+        }
+    }
+
+    // Check type consistency
+    const types = q.options.map(opt => detectType(opt));
+    const uniqueTypes = new Set(types);
+    if (uniqueTypes.size > 1) {
+        console.log('   ❌ Type mismatch:', types.join(', '));
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Detect type of option
+ */
+function detectType(opt) {
+    const trimmed = opt.trim();
+
+    // Year
+    if (/^\d{4}$/.test(trimmed)) {
+        const year = parseInt(trimmed);
+        if (year >= 1500 && year <= 2100) return 'year';
+    }
+
+    // Number
+    if (/^\d+[.,]?\d*\s*(million|billion|thousand|%|percent)?$/i.test(trimmed)) {
+        return 'number';
+    }
+
+    // Proper noun (capitalized)
+    if (/^[A-Z]/.test(trimmed) && trimmed.split(' ').length <= 4) {
+        return 'proper_noun';
+    }
+
+    // Noun phrase
+    if (trimmed.split(' ').length <= 5) {
+        return 'noun_phrase';
+    }
+
+    return 'unknown';
+}
+
+/**
+ * Content-aware fallback quiz generation
+ */
+async function buildQuizContentAware(text) {
+    console.log('📚 Starting content-aware fallback');
+
+    try {
+        const cleaned = cleanNoise(text);
+        console.log('🧹 Cleaned text length:', cleaned.length);
+
+        // Split into sentences
+        const sentences = cleaned
+            .split(/(?<=[.!?])\s+/)
+            .map(s => s.trim())
+            .filter(s => {
+                const words = s.split(/\s+/).length;
+                return words >= 8 && words <= 40 && s.length >= 40 && s.length <= 300;
+            })
+            .slice(0, 30);
+
+        console.log(`📊 Found ${sentences.length} candidate sentences`);
+
+        if (sentences.length === 0) {
+            console.log('❌ No valid sentences found');
+            return [];
+        }
+
+        const candidates = [];
+
+        // Extract entities from each sentence
+        sentences.forEach((sentence, idx) => {
+            // Find capitalized entities
+            const entityPattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g;
+            const entities = sentence.match(entityPattern) || [];
+
+            // Filter out common words
+            const validEntities = entities.filter(e => 
+                e.length > 2 && 
+                !['The', 'A', 'An', 'In', 'On', 'At', 'For', 'With', 'By'].includes(e)
+            );
+
+            if (validEntities.length === 0) return;
+
+            // Use first valid entity
+            const entity = validEntities[0];
+
+            // Create question by replacing entity with blank
+            const question = sentence.replace(entity, '_____');
+            if (!question.includes('_____')) return;
+
+            const finalQuestion = question.endsWith('?') ? question : question + '?';
+
+            // Find other entities from entire text for options
+            const allEntities = [...new Set(cleaned.match(entityPattern) || [])];
+            const validAllEntities = allEntities.filter(e => 
+                e.length > 2 && 
+                e !== entity &&
+                !['The', 'A', 'An', 'In', 'On', 'At', 'For', 'With', 'By'].includes(e)
+            );
+
+            // Build options: correct answer + 3 others
+            const options = [entity];
+            for (const other of validAllEntities) {
+                if (options.length >= 4) break;
+                if (!options.includes(other)) {
+                    options.push(other);
+                }
+            }
+
+            // Only add if we have exactly 4 options
+            if (options.length === 4) {
+                // Shuffle options
+                const shuffled = options.sort(() => Math.random() - 0.5);
+
+                const candidate = {
+                    question: finalQuestion,
+                    options: shuffled,
+                    answer: entity
+                };
+
+                // Validate before adding
+                if (validateQuestionUniversal(candidate, cleaned)) {
+                    candidates.push(candidate);
+                    console.log(`   ✅ Created question ${candidates.length} from sentence ${idx + 1}`);
+                }
+            }
+        });
+
+        console.log(`✅ Generated ${candidates.length} candidate questions`);
+
+        // Return top 5
+        const final = candidates.slice(0, 5);
+        console.log(`📊 Returning ${final.length} questions`);
+
+        return final;
+
+    } catch (e) {
+        console.error('❌ Fallback generation error:', e);
+        return [];
+    }
+}
+
+
 
 async function onAction(action){
   const { title, text, image } = await extractArticle();
@@ -462,10 +743,13 @@ async function onAction(action){
     let structuredItems = null;
     // Ask on-device LM to choose layout and optionally emit structured JSON
     try{
-      if('ai' in self && ai.languageModel){
-        const cap = await ai.languageModel.capabilities();
-        if(cap.available === 'readily'){
-          const session = await ai.languageModel.create();
+      // UPDATED: Check for global 'LanguageModel'
+      if('LanguageModel' in self){
+        // UPDATED: Use .availability()
+        const availability = await LanguageModel.availability();
+        if(availability === 'available'){ // UPDATED: Check for 'available' state
+          // UPDATED: Use global LanguageModel.create()
+          const session = await LanguageModel.create();
           const ask = `Analyze the passage and choose one visualization: timeline, process, or map. If timeline or process, return JSON ONLY with {layout:"timeline|process", items:[{date?:string, label:string, desc?:string}]}. If map, return JSON ONLY with {layout:"map", topics:[string]}. Passage:\n\n${text.slice(0,2500)}`;
           const res = await session.prompt(ask);
           const jsonStart = res.indexOf('{');
@@ -525,5 +809,3 @@ function ensureFab(){
 }
 
 ensureFab();
-
-
