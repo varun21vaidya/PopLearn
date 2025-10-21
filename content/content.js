@@ -536,15 +536,15 @@ async function buildQuizWithAI_Universal(text) {
         console.log('📥 AI response length:', fullResponse.length);
         console.log('📄 AI response preview:', fullResponse.substring(0, 200));
 
-// NEW: Clean the response more aggressively and safely
-let cleanedResponse = fullResponse
-  // Remove any triple or quadruple backtick wrappers (```````) around JSON
-  .replace(/\s*```+\s*$/i, '')            // remove trailing code fence
-  // Remove stray markdown markers or language hints
-  .replace(/^"+|"+$/g, '')                // remove extra quotes accidentally added
-  .replace(/^\s*json\s*/i, '')            // remove leading 'json' label
-  .replace(/\s*[\r\n]+$/, '')             // trim trailing new lines
-  .trim();
+        // NEW: Clean the response more aggressively and safely
+        let cleanedResponse = fullResponse
+          // Remove any triple or quadruple backtick wrappers (```````) around JSON
+          .replace(/\s*```+\s*$/i, '')            // remove trailing code fence
+          // Remove stray markdown markers or language hints
+          .replace(/^"+|"+$/g, '')                // remove extra quotes accidentally added
+          .replace(/^\s*json\s*/i, '')            // remove leading 'json' label
+          .replace(/\s*[\r\n]+$/, '')             // trim trailing new lines
+          .trim();
 
 
       // Try to extract JSON array - be more lenient
