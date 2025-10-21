@@ -437,6 +437,14 @@ function uniqueOptions(correct, pool){
 // ========================================
 // COMPLETE WORKING QUIZ SYSTEM WITH DEBUG
 // ========================================
+function cleanAIResponse(raw) {
+  return raw
+    // Remove leading code fence like ``````json
+    .replace(/^\s*(`{3,})\s*(json)?\s*\n?/i, '')
+    // Remove trailing code fence
+    .replace(/\n?\s*(`{3,})\s*$/i, '')
+    .trim();
+}
 
 /**
  * Main entry point - Universal quiz generation
@@ -495,7 +503,7 @@ async function buildQuizWithAI_Universal(text) {
             systemPrompt: 'You create quiz questions based ONLY on provided content.'
         });
 
-        const preparedText = cleanNoise(text).slice(0, 5000);
+        const preparedText = cleanNoise(text);
         console.log('📝 Prepared text length:', preparedText.length);
 
         const prompt = `Create 5 multiple-choice questions from this content.
@@ -534,21 +542,16 @@ async function buildQuizWithAI_Universal(text) {
         }
 
         console.log('📥 AI response length:', fullResponse.length);
-        console.log('📄 AI response preview:', fullResponse.substring(0, 200));
+        console.log('📄 AI response preview:', fullResponse);
 
         // NEW: Clean the response more aggressively and safely
-        let cleanedResponse = fullResponse
-          // Remove any triple or quadruple backtick wrappers (```````) around JSON
-          .replace(/\s*```+\s*$/i, '')            // remove trailing code fence
-          // Remove stray markdown markers or language hints
-          .replace(/^"+|"+$/g, '')                // remove extra quotes accidentally added
-          .replace(/^\s*json\s*/i, '')            // remove leading 'json' label
-          .replace(/\s*[\r\n]+$/, '')             // trim trailing new lines
-          .trim();
-
+        console.log('🧼 Cleaning AI response...');
+        let cleanedResponse = cleanAIResponse(fullResponse);
+        console.log('🧹 Cleaned AI response:', cleanedResponse);
 
       // Try to extract JSON array - be more lenient
       let jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
+      console.log('🔍 JSON match found:', !!jsonMatch);
 
       // If no match, try to find JSON starting with [ and ending with ]
       if (!jsonMatch) {
@@ -559,6 +562,7 @@ async function buildQuizWithAI_Universal(text) {
               jsonMatch = [cleanedResponse];
           }
       }
+
 
     if (!jsonMatch) {
         console.error('❌ No JSON found in AI response (after cleaning)');
