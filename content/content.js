@@ -536,31 +536,29 @@ async function buildQuizWithAI_Universal(text) {
         console.log('📥 AI response length:', fullResponse.length);
         console.log('📄 AI response preview:', fullResponse.substring(0, 200));
 
-        // NEW: Clean the response to remove markdown wrappers before parsing
-        const cleanedResponse = fullResponse
-            .replace(/^```json\s*/, '') // Remove opening ```json
-            .replace(/```$/, '');       // Remove closing ```
-
-        // Extract JSON from the *cleaned* response
-// NEW: Clean the response more aggressively
+// NEW: Clean the response more aggressively and safely
 let cleanedResponse = fullResponse
-    .replace(/^``````json (case insensitive)
-    .replace(/``````
-    .replace(/^`````` at start
-    .trim();
+  // Remove any triple or quadruple backtick wrappers (```````) around JSON
+  .replace(/\s*```+\s*$/i, '')            // remove trailing code fence
+  // Remove stray markdown markers or language hints
+  .replace(/^"+|"+$/g, '')                // remove extra quotes accidentally added
+  .replace(/^\s*json\s*/i, '')            // remove leading 'json' label
+  .replace(/\s*[\r\n]+$/, '')             // trim trailing new lines
+  .trim();
 
-    // Try to extract JSON array - be more lenient
-    let jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
 
-    // If no match, try to find JSON starting with [ and ending with ]
-    if (!jsonMatch) {
-        const startIdx = cleanedResponse.indexOf('[');
-        const endIdx = cleanedResponse.lastIndexOf(']');
-        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-            cleanedResponse = cleanedResponse.substring(startIdx, endIdx + 1);
-            jsonMatch = [cleanedResponse];
-        }
-    }
+      // Try to extract JSON array - be more lenient
+      let jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
+
+      // If no match, try to find JSON starting with [ and ending with ]
+      if (!jsonMatch) {
+          const startIdx = cleanedResponse.indexOf('[');
+          const endIdx = cleanedResponse.lastIndexOf(']');
+          if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+              cleanedResponse = cleanedResponse.substring(startIdx, endIdx + 1);
+              jsonMatch = [cleanedResponse];
+          }
+      }
 
     if (!jsonMatch) {
         console.error('❌ No JSON found in AI response (after cleaning)');
