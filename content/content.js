@@ -566,12 +566,12 @@ async function buildQuizWithAI_Universal(text) {
 
     if (!jsonMatch) {
         console.error('❌ No JSON found in AI response (after cleaning)');
-        console.error('Response preview:', cleanedResponse.substring(0, 500));
+        console.error('Response preview:', cleanedResponse);
         throw new Error('No valid JSON');
     }
 
     console.log('✅ JSON extracted, parsing...');
-    console.log('JSON to parse:', jsonMatch[0].substring(0, 300) + '...');
+    console.log('JSON to parse:', jsonMatch[0] + '...');
 
     let questions;
     try {
@@ -580,7 +580,11 @@ async function buildQuizWithAI_Universal(text) {
             .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
             .replace(/'/g, '"')              // Replace single quotes with double quotes
             .replace(/(\w+):/g, '"$1":');    // Add quotes to unquoted keys
-        
+        console.log('🔧 Fixed JSON string:', jsonStr);
+        // Remove a leading " and a trailing " if present
+        if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
+          jsonStr = jsonStr.slice(1, -1);
+        }
         questions = JSON.parse(jsonStr);
     } catch (parseError) {
         console.error('❌ JSON parse error:', parseError.message);
