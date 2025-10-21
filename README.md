@@ -8,6 +8,10 @@ Quickstart
 3) Pin the extension. Open any article page.
 4) Click the toolbar icon and choose: Simplify Article, Build Mindmap, or Test Knowledge.
 
+
+https://github.com/user-attachments/assets/007b42aa-7508-45d5-9dd3-f5aec525fdbd
+
+
 How it works
 ------------
 - Popup (`popup/popup.html`) sends an action to the active tab.
